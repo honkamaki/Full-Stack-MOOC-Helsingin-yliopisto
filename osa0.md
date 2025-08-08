@@ -1,3 +1,5 @@
+
+```mermaid
 sequenceDiagram
     participant browser
     participant server
@@ -35,3 +37,4 @@ sequenceDiagram
     deactivate server    
 
     Note right of browser: Browser executes the callback and renders the list including the new "123" note
+```
