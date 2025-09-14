@@ -1,6 +1,8 @@
 import express from 'express'
 import cors from 'cors'
 import morgan from 'morgan'
+import path from 'node:path'
+
 
 const app = express()
 
@@ -55,9 +57,8 @@ app.post('/api/persons', (req, res) => {
   res.status(201).json(newPerson)
 })
 
-// React catch-all: palautetaan index.html muille kuin /api/* pyynnöille
-app.get('*', (_req, res) => {
-  res.sendFile('index.html', { root: 'dist' })
+app.get(/^\/(?!api).*/, (_req, res) => {
+  res.sendFile(path.resolve('dist', 'index.html'))
 })
 
 // Käynnistys (Render lukee portin envistä)
