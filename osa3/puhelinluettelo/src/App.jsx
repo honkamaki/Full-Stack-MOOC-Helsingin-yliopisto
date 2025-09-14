@@ -48,7 +48,7 @@ const App = () => {
 
     const exists = persons.find(p => p.name.toLowerCase() === name.toLowerCase())
     if (exists) {
-      alert(`${name} is already added to phonebook (updating number comes in task 3.17)`)
+      alert(`${name} is already added to phonebook`)
       return
     }
 
