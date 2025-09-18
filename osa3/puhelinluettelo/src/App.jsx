@@ -1,105 +1,113 @@
+// src/App.jsx
 import { useEffect, useState } from 'react'
-import personsService from './services/persons'
+import personsService from './Services/persons'
 
-const Filter = ({ value, onChange }) => (
-  <div>
-    filter shown with <input value={value} onChange={onChange} />
-  </div>
-)
-
-const PersonForm = ({ onSubmit, newName, onNameChange, newNumber, onNumberChange }) => (
-  <form onSubmit={onSubmit}>
-    <div>name: <input value={newName} onChange={onNameChange} /></div>
-    <div>number: <input value={newNumber} onChange={onNumberChange} /></div>
-    <button type="submit">add</button>
-  </form>
-)
-
-const Person = ({ person, onDelete }) => (
-  <li>
-    {person.name} {person.number}{' '}
-    <button onClick={() => onDelete(person.id, person.name)}>delete</button>
-  </li>
-)
-
-const Persons = ({ persons, onDelete }) => (
-  <ul>
-    {persons.map(p => (
-      <Person key={p.id ?? p.name} person={p} onDelete={onDelete} />
-    ))}
-  </ul>
-)
-
-const App = () => {
+function App() {
   const [persons, setPersons] = useState([])
   const [newName, setNewName] = useState('')
   const [newNumber, setNewNumber] = useState('')
-  const [filter, setFilter] = useState('')
+  const [note, setNote] = useState(null)
 
   useEffect(() => {
-    personsService.getAll().then(setPersons)
+    personsService.getAll().then(setPersons).catch(console.error)
   }, [])
 
-  const handleSubmit = (e) => {
+  const notify = (type, text) => {
+    setNote({ type, text })
+    setTimeout(() => setNote(null), 3000)
+  }
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
+
     const name = newName.trim()
     const number = newNumber.trim()
     if (!name || !number) return
 
-    const exists = persons.find(p => p.name.toLowerCase() === name.toLowerCase())
-    if (exists) {
-      alert(`${name} is already added`)
+    const existing = persons.find(
+      p => p.name.trim().toLowerCase() === name.toLowerCase()
+    )
+
+    if (existing) {
+      const ok = window.confirm(
+        `${name} on jo luettelossa, korvataanko vanha numero uudella?`
+      )
+      if (!ok) return
+      try {
+        const updated = await personsService.update(existing.id, { ...existing, number })
+        setPersons(prev => prev.map(p => p.id === existing.id ? updated : p))
+        setNewName('')
+        setNewNumber('')
+        notify('success', `Päivitetty: ${updated.name}`)
+      } catch (err) {
+        // Jos henkilö on poistettu kannasta -> siivoa lista
+        if (err?.response?.status === 404) {
+          setPersons(prev => prev.filter(p => p.id !== existing.id))
+          notify('error', `Henkilö ${existing.name} oli jo poistettu palvelimelta`)
+        } else {
+          console.error(err)
+          notify('error', 'Päivitys epäonnistui')
+        }
+      }
       return
     }
 
-    personsService.create({ name, number })
-      .then(returned => {
-        setPersons(persons.concat(returned))
-        setNewName('')
-        setNewNumber('')
-      })
-      .catch(err => {
-        console.error(err)
-        alert('Failed to add person')
-      })
+    try {
+      const created = await personsService.create({ name, number })
+      setPersons(prev => prev.concat(created))
+      setNewName('')
+      setNewNumber('')
+      notify('success', `Lisätty: ${created.name}`)
+    } catch (err) {
+      console.error(err)
+      notify('error', 'Lisäys epäonnistui')
+    }
   }
 
-  const handleDelete = (id, name) => {
-    if (!window.confirm(`Delete ${name}?`)) return
-    personsService.remove(id)
-      .then(() => setPersons(persons.filter(p => p.id !== id)))
-      .catch(err => {
+  const handleDelete = async (id, name) => {
+    const ok = window.confirm(`Poistetaanko ${name}?`)
+    if (!ok) return
+    try {
+      await personsService.remove(id)
+      setPersons(prev => prev.filter(p => p.id !== id))
+      notify('success', `Poistettu: ${name}`)
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        setPersons(prev => prev.filter(p => p.id !== id))
+        notify('error', `${name} oli jo poistettu palvelimelta`)
+      } else {
         console.error(err)
-        // jos palvelimella jo poistettu, siivotaan listasta
-        setPersons(persons.filter(p => p.id !== id))
-        alert(`Information of ${name} was already removed from server`)
-      })
+        notify('error', 'Poisto epäonnistui')
+      }
+    }
   }
-
-  const personsToShow = persons.filter(p =>
-    p.name.toLowerCase().includes(filter.toLowerCase())
-  )
 
   return (
-    <div>
-      <h2>Phonebook</h2>
+    <div className="container">
+      <h1>Phonebook</h1>
+      {note && <Notification type={note.type} message={note.text} />}
 
-      <Filter value={filter} onChange={e => setFilter(e.target.value)} />
+      <form onSubmit={handleSubmit}>
+        <div>
+          name: <input value={newName} onChange={e => setNewName(e.target.value)} />
+        </div>
+        <div>
+          number: <input value={newNumber} onChange={e => setNewNumber(e.target.value)} />
+        </div>
+        <button type="submit">add</button>
+      </form>
 
-      <h3>Add a new</h3>
-      <PersonForm
-        onSubmit={handleSubmit}
-        newName={newName}
-        onNameChange={e => setNewName(e.target.value)}
-        newNumber={newNumber}
-        onNumberChange={e => setNewNumber(e.target.value)}
-      />
-
-      <h3>Numbers</h3>
-      <Persons persons={personsToShow} onDelete={handleDelete} />
+      <h2>Numbers</h2>
+      <ul>
+        {persons.map(p => (
+          <li key={p.id}>
+            {p.name} {p.number}{' '}
+            <button onClick={() => handleDelete(p.id, p.name)}>delete</button>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
 
 export default App
-//kommentti pushia varten
