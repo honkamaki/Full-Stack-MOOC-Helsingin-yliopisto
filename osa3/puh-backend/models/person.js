@@ -1,6 +1,14 @@
 // puh-backend/models/person.js
 import mongoose from 'mongoose'
 
+const phoneValidator = {
+  validator: function (v) {
+    // Hyväksyy esim. 09-1234556 tai 040-22334455
+    return /^\d{2,3}-\d+$/.test(v)
+  },
+  message: props => `${props.value} is not a valid phone number!`
+}
+
 const personSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -10,6 +18,8 @@ const personSchema = new mongoose.Schema({
   number: {
     type: String,
     required: [true, 'Number is required'],
+    minlength: [8, 'Number must be at least 8 characters long'],
+    validate: phoneValidator
   },
 })
 
