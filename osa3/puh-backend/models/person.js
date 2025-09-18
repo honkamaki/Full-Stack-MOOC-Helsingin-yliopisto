@@ -32,3 +32,4 @@ personSchema.set('toJSON', {
 })
 
 export default mongoose.model('Person', personSchema)
+//pushia varten
