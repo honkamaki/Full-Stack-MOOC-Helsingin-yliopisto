@@ -14,10 +14,27 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-// palvele valmiiksi rakennetun frontin tiedostot (puh-backend/dist)
+// Palvele frontin build (puh-backend/dist)
 app.use(express.static('dist'))
 
-// --- API ROUTES ---
+// ---------------- INFO (3.18*) ----------------
+app.get('/info', async (_req, res, next) => {
+  try {
+    const count = await Person.countDocuments({})
+    const now = new Date().toString()
+    res
+      .type('html')
+      .send(
+        `<p>Phonebook has info for ${count} ${
+          count === 1 ? 'person' : 'people'
+        }</p><p>${now}</p>`
+      )
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ---------------- API ----------------
 
 // GET kaikki
 app.get('/api/persons', async (_req, res, next) => {
@@ -90,17 +107,18 @@ app.delete('/api/persons/:id', async (req, res, next) => {
   }
 })
 
-// --- 3.16: tuntematon API-endpoint ---
-const unknownEndpoint = (req, res, next) => {
+// ---------------- VIRHEIDENKÄSITTELY ----------------
+
+// Tuntematon API-endpoint (3.16)
+app.use((req, res, next) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ error: 'unknown endpoint' })
   }
   next()
-}
-app.use(unknownEndpoint)
+})
 
-// --- 3.16: virheenkäsittely viimeisenä ---
-const errorHandler = (error, _req, res, next) => {
+// Virheidenkäsittelijä (3.16)
+app.use((error, _req, res, _next) => {
   console.error(error.name, error.message)
 
   if (error.name === 'CastError') {
@@ -110,19 +128,20 @@ const errorHandler = (error, _req, res, next) => {
     return res.status(400).json({ error: error.message })
   }
   return res.status(500).json({ error: 'internal server error' })
-}
-app.use(errorHandler)
+})
 
-// SPA fallback: muut kuin /api polut ohjataan index.html:ään
-app.use((req, res) => {
+// ---------------- SPA fallback ----------------
+// Kaikki muut kuin /api & /info palautetaan frontin index.html:llä
+app.use((_req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'))
 })
 
-// --- DB + serveri ---
+// ---------------- DB + SERVERI ----------------
 const PORT = process.env.PORT || 3001
 const MONGODB_URI = process.env.MONGODB_URI
 
 mongoose.set('strictQuery', false)
+
 mongoose
   .connect(MONGODB_URI)
   .then(() => {
@@ -131,7 +150,7 @@ mongoose
       console.log(`Server running on port ${PORT}`)
     })
   })
-  .catch(err => {
+  .catch((err) => {
     console.error('error connecting to MongoDB:', err.message)
     process.exit(1)
   })
