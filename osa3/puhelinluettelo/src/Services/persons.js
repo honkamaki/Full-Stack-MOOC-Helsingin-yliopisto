@@ -1,13 +1,25 @@
-// src/services/persons.js
+// puhelinluettelo/src/Services/persons.js
 import axios from 'axios'
 
-// Tuotannossa sama domain: /api/persons
-// Devissä voit asettaa VITE_API_URL=.env.* jos haluat eri osoitteen.
-const baseUrl = import.meta.env.VITE_API_URL ?? '/api/persons'
+const baseUrl = '/api/persons'
 
-const getAll = () => axios.get(baseUrl).then(r => r.data)
-const create = (newPerson) => axios.post(baseUrl, newPerson).then(r => r.data)
-const update = (id, updated) => axios.put(`${baseUrl}/${id}`, updated).then(r => r.data)
-const remove = (id) => axios.delete(`${baseUrl}/${id}`)
+const getAll = async () => {
+  const res = await axios.get(baseUrl)
+  return res.data
+}
+
+const create = async (newPerson) => {
+  const res = await axios.post(baseUrl, newPerson)
+  return res.data
+}
+
+const update = async (id, updated) => {
+  const res = await axios.put(`${baseUrl}/${id}`, updated)
+  return res.data
+}
+
+const remove = async (id) => {
+  await axios.delete(`${baseUrl}/${id}`)
+}
 
 export default { getAll, create, update, remove }
