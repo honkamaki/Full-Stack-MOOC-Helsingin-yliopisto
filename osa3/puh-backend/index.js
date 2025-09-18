@@ -114,7 +114,7 @@ const errorHandler = (error, _req, res, next) => {
 app.use(errorHandler)
 
 // SPA fallback: muut kuin /api polut ohjataan index.html:ään
-app.get('/*', (_req, res) => {
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'))
 })
 
