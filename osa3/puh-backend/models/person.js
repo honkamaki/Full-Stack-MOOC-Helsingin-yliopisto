@@ -6,7 +6,6 @@ const personSchema = new mongoose.Schema({
   number: { type: String, required: true },
 })
 
-// Muunna MongoDB:n _id => id ja poista __v vastauksista
 personSchema.set('toJSON', {
   transform: (_doc, ret) => {
     ret.id = ret._id.toString()
@@ -15,5 +14,4 @@ personSchema.set('toJSON', {
   }
 })
 
-const Person = mongoose.model('Person', personSchema)
-export default Person
+export default mongoose.model('Person', personSchema)
