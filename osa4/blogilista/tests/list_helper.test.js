@@ -1,20 +1,20 @@
-// tests/list_helper.test.js
-const { test, describe } = require('node:test')
+const { describe, test } = require('node:test')
 const assert = require('node:assert')
 const listHelper = require('../utils/list_helper')
 
-// 4.3 dummy
-test('dummy returns one', () => {
-  const blogs = []
-  const result = listHelper.dummy(blogs)
-  assert.strictEqual(result, 1)
+// ---------- 4.3 ----------
+describe('dummy', () => {
+  test('returns one', () => {
+    const result = listHelper.dummy([])
+    assert.strictEqual(result, 1)
+  })
 })
 
-// 4.4 totalLikes
+// ---------- 4.4 ----------
 describe('total likes', () => {
-  const listWithNoBlogs = []
+  const empty = []
 
-  const listWithOneBlog = [
+  const oneBlog = [
     {
       _id: '5a422aa71b54a676234d17f8',
       title: 'Go To Statement Considered Harmful',
@@ -25,64 +25,114 @@ describe('total likes', () => {
     },
   ]
 
-  const listWithManyBlogs = [
-    { _id: 'a', title: 'First', author: 'Ada', url: '#', likes: 7, __v: 0 },
-    { _id: 'b', title: 'Second', author: 'Linus', url: '#', likes: 5, __v: 0 },
-    { _id: 'c', title: 'Third', author: 'Grace', url: '#', likes: 12, __v: 0 },
-    { _id: 'd', title: 'Zero likes', author: 'Anon', url: '#', likes: 0, __v: 0 },
+  const many = [
+    {
+      _id: '5a422a851b54a676234d17f7',
+      title: 'React patterns',
+      author: 'Michael Chan',
+      url: 'https://reactpatterns.com/',
+      likes: 7,
+      __v: 0,
+    },
+    {
+      _id: '5a422aa71b54a676234d17f8',
+      title: 'Go To Statement Considered Harmful',
+      author: 'Edsger W. Dijkstra',
+      url: 'http://www.u.arizona.edu/~rubinson/copyright_violations/Go_To_Considered_Harmful.html',
+      likes: 5,
+      __v: 0,
+    },
+    {
+      _id: '5a422b3a1b54a676234d17f9',
+      title: 'Canonical string reduction',
+      author: 'Edsger W. Dijkstra',
+      url: 'http://www.cs.utexas.edu/~EWD/transcriptions/EWD08xx/EWD808.html',
+      likes: 12,
+      __v: 0,
+    },
   ]
 
   test('of empty list is zero', () => {
-    const result = listHelper.totalLikes(listWithNoBlogs)
-    assert.strictEqual(result, 0)
+    assert.strictEqual(listHelper.totalLikes(empty), 0)
   })
 
   test('when list has only one blog equals the likes of that', () => {
-    const result = listHelper.totalLikes(listWithOneBlog)
-    assert.strictEqual(result, 5)
+    assert.strictEqual(listHelper.totalLikes(oneBlog), 5)
   })
 
   test('of a bigger list is calculated right', () => {
-    const result = listHelper.totalLikes(listWithManyBlogs)
-    assert.strictEqual(result, 24) // 7 + 5 + 12 + 0
+    assert.strictEqual(listHelper.totalLikes(many), 24)
   })
 })
 
-// 4.5 favoriteBlog
+// ---------- 4.5 ----------
 describe('favorite blog', () => {
-  const noBlogs = []
-
-  const oneBlog = [
-    { _id: '1', title: 'Single', author: 'Only One', url: '#', likes: 42, __v: 0 },
+  const blogs = [
+    {
+      _id: '5a422a851b54a676234d17f7',
+      title: 'React patterns',
+      author: 'Michael Chan',
+      url: 'https://reactpatterns.com/',
+      likes: 7,
+      __v: 0,
+    },
+    {
+      _id: '5a422aa71b54a676234d17f8',
+      title: 'Go To Statement Considered Harmful',
+      author: 'Edsger W. Dijkstra',
+      url: 'http://www.u.arizona.edu/~rubinson/copyright_violations/Go_To_Considered_Harmful.html',
+      likes: 5,
+      __v: 0,
+    },
+    {
+      _id: '5a422b3a1b54a676234d17f9',
+      title: 'Canonical string reduction',
+      author: 'Edsger W. Dijkstra',
+      url: 'http://www.cs.utexas.edu/~EWD/transcriptions/EWD08xx/EWD808.html',
+      likes: 12,
+      __v: 0,
+    },
+    {
+      _id: '5a422b891b54a676234d17fa',
+      title: 'First class tests',
+      author: 'Robert C. Martin',
+      url: 'http://blog.cleancoder.com/uncle-bob/2017/05/05/TestDefinitions.htmll',
+      likes: 10,
+      __v: 0,
+    },
+    {
+      _id: '5a422ba71b54a676234d17fb',
+      title: 'TDD harms architecture',
+      author: 'Robert C. Martin',
+      url: 'http://blog.cleancoder.com/uncle-bob/2017/03/03/TDD-Harms-Architecture.html',
+      likes: 0,
+      __v: 0,
+    },
+    {
+      _id: '5a422bc61b54a676234d17fc',
+      title: 'Type wars',
+      author: 'Robert C. Martin',
+      url: 'http://blog.cleancoder.com/uncle-bob/2016/05/01/TypeWars.html',
+      likes: 2,
+      __v: 0,
+    },
   ]
 
-  const manyBlogs = [
-    { _id: 'a', title: 'First', author: 'Ada', url: '#', likes: 7, __v: 0 },
-    { _id: 'b', title: 'Second', author: 'Linus', url: '#', likes: 5, __v: 0 },
-    { _id: 'c', title: 'Third', author: 'Grace', url: '#', likes: 12, __v: 0 },
-    { _id: 'd', title: 'Tie', author: 'Anon', url: '#', likes: 12, __v: 0 },
-  ]
-
-  test('of empty list is null', () => {
-    const result = listHelper.favoriteBlog(noBlogs)
-    assert.strictEqual(result, null)
-  })
-
-  test('when list has only one blog equals that blog', () => {
-    const result = listHelper.favoriteBlog(oneBlog)
-    assert.deepStrictEqual(result, oneBlog[0])
-  })
-
-  test('of a bigger list is the one with most likes', () => {
-    const result = listHelper.favoriteBlog(manyBlogs)
+  test('returns the blog with most likes', () => {
+    const result = listHelper.favoriteBlog(blogs)
     const expected = {
-      _id: 'c',
-      title: 'Third',
-      author: 'Grace',
-      url: '#',
+      _id: '5a422b3a1b54a676234d17f9',
+      title: 'Canonical string reduction',
+      author: 'Edsger W. Dijkstra',
+      url: 'http://www.cs.utexas.edu/~EWD/transcriptions/EWD08xx/EWD808.html',
       likes: 12,
       __v: 0,
     }
     assert.deepStrictEqual(result, expected)
+  })
+
+  test('of empty list is null', () => {
+    const result = listHelper.favoriteBlog([])
+    assert.strictEqual(result, null)
   })
 })
