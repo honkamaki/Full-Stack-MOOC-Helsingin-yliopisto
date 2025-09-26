@@ -3,8 +3,12 @@ const express = require('express')
 const cors = require('cors')
 const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+
 const Blog = require('./models/blog')
 const User = require('./models/user')
+const { SECRET } = require('./utils/config')
+const { tokenExtractor, userExtractor, unknownEndpoint, errorHandler } = require('./utils/middleware')
 
 const app = express()
 app.use(cors())
@@ -12,36 +16,38 @@ app.use(express.json())
 
 // --- BLOGIT ---
 
-// GET all blogs (4.17: populate user)
+// GET all blogs (populate user)
 app.get('/api/blogs', async (_req, res, next) => {
   try {
     const blogs = await Blog.find({}).populate('user', 'username name')
     res.json(blogs)
-  } catch (err) {
-    next(err)
-  }
+  } catch (err) { next(err) }
 })
 
-// POST blog (4.17: kytke blogi johonkin olemassa olevaan käyttäjään, esim. ensimmäinen)
-app.post('/api/blogs', async (req, res, next) => {
+// POST blog (4.19: vaatii tokenin ja liittää kirjautuneen käyttäjän)
+app.post('/api/blogs', tokenExtractor, userExtractor, async (req, res, next) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'token required or invalid' })
+    }
+
     const { title, author, url, likes } = req.body
     if (!title || !url) {
       return res.status(400).json({ error: 'title and url are required' })
     }
 
-    // hae joku käyttäjä (tässä vaiheessa ei ole väliä kuka)
-    const user = await User.findOne({})
-    const blog = new Blog({ title, author, url, likes, user: user ? user._id : undefined })
+    const blog = new Blog({
+      title,
+      author,
+      url,
+      likes,
+      user: req.user._id,
+    })
     const saved = await blog.save()
 
-    // jos käyttäjä löytyi, lisää blogin viittaus käyttäjälle
-    if (user) {
-      user.blogs = user.blogs.concat(saved._id)
-      await user.save()
-    }
+    req.user.blogs = req.user.blogs.concat(saved._id)
+    await req.user.save()
 
-    // palauta populated-versio
     await saved.populate('user', 'username name')
     res.status(201).json(saved)
   } catch (err) {
@@ -49,7 +55,7 @@ app.post('/api/blogs', async (req, res, next) => {
   }
 })
 
-// DELETE one blog
+// DELETE blog
 app.delete('/api/blogs/:id', async (req, res, next) => {
   try {
     const { id } = req.params
@@ -59,12 +65,10 @@ app.delete('/api/blogs/:id', async (req, res, next) => {
     const deleted = await Blog.findByIdAndDelete(id)
     if (!deleted) return res.status(404).json({ error: 'not found' })
     return res.status(204).end()
-  } catch (err) {
-    next(err)
-  }
+  } catch (err) { next(err) }
 })
 
-// PUT update blog (esim. likes)
+// UPDATE blog (likes tms.)
 app.put('/api/blogs/:id', async (req, res, next) => {
   try {
     const { id } = req.params
@@ -73,33 +77,25 @@ app.put('/api/blogs/:id', async (req, res, next) => {
     }
     const { title, author, url, likes } = req.body
     const update = { title, author, url, likes }
-
     const updated = await Blog.findByIdAndUpdate(
       id,
       update,
       { new: true, runValidators: true, context: 'query' }
     ).populate('user', 'username name')
-
     if (!updated) return res.status(404).json({ error: 'not found' })
     return res.json(updated)
-  } catch (err) {
-    next(err)
-  }
+  } catch (err) { next(err) }
 })
 
 // --- KÄYTTÄJÄT ---
 
-// GET all users (4.17: populate blogs)
 app.get('/api/users', async (_req, res, next) => {
   try {
     const users = await User.find({}).populate('blogs', 'title author url likes')
     res.json(users)
-  } catch (err) {
-    next(err)
-  }
+  } catch (err) { next(err) }
 })
 
-// POST create user (4.15 + 4.16*)
 app.post('/api/users', async (req, res, next) => {
   try {
     const { username, name, password } = req.body
@@ -112,27 +108,44 @@ app.post('/api/users', async (req, res, next) => {
     if (password.length < 3) {
       return res.status(400).json({ error: 'password must be at least 3 characters' })
     }
-
-    const saltRounds = 10
-    const passwordHash = await bcrypt.hash(password, saltRounds)
+    const passwordHash = await bcrypt.hash(password, 10)
     const user = new User({ username, name, passwordHash })
     const saved = await user.save()
     res.status(201).json(saved)
   } catch (err) {
-    if (err?.code === 11000) {
-      return res.status(400).json({ error: 'username must be unique' })
-    }
-    if (err?.name === 'ValidationError') {
-      return res.status(400).json({ error: err.message })
-    }
+    if (err?.code === 11000) return res.status(400).json({ error: 'username must be unique' })
+    if (err?.name === 'ValidationError') return res.status(400).json({ error: err.message })
     next(err)
   }
 })
 
-// --- Virheenkäsittely ---
-app.use((err, _req, res, _next) => {
-  console.error(err.name, err.message)
-  res.status(500).json({ error: 'server error' })
+// --- LOGIN (4.18) ---
+app.post('/api/login', async (req, res, next) => {
+  try {
+    const { username, password } = req.body
+    const user = await User.findOne({ username })
+    const passwordCorrect = user
+      ? await bcrypt.compare(password, user.passwordHash)
+      : false
+
+    if (!user || !passwordCorrect) {
+      return res.status(401).json({ error: 'invalid username or password' })
+    }
+
+    const userForToken = { username: user.username, id: user._id.toString() }
+    const token = jwt.sign(userForToken, SECRET, { expiresIn: '1h' })
+
+    res.status(200).json({
+      token,
+      username: user.username,
+      name: user.name,
+      id: user._id.toString(),
+    })
+  } catch (err) { next(err) }
 })
+
+// --- Virheenkäsittely ---
+app.use(unknownEndpoint)
+app.use(errorHandler)
 
 module.exports = app
